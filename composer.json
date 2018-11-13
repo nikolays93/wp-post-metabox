@@ -1,0 +1,14 @@
+{
+    "name": "NikolayS93/wp-post-boxes",
+    "description": "My wordpres admin tool",
+    "authors": [
+        {
+            "name": "NikolayS93",
+            "email": "NikolayS93@ya.ru"
+        }
+    ],
+    "autoload": {
+        "psr-4": { "NikolayS93\\WP_Post_Metabox\\": "src/" }
+    },
+    "require": {}
+}
