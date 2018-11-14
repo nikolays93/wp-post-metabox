@@ -8,7 +8,7 @@
         }
     ],
     "autoload": {
-        "psr-4": { "NikolayS93\\WP_Post_Metabox\\": "/" }
+        "psr-4": { "NikolayS93\\": "" }
     },
     "require": {}
 }
