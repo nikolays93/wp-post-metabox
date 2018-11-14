@@ -63,15 +63,13 @@ class WP_Post_Metabox
 	 * @param string 	$output_function Название callback функции
 	 * @param boolean 	$side   Показывать с боку / Нормально
 	 */
-	public function add_box($name = false, $output_function = false, $side = false)
+	public function add_box($name = false, $output_function = false, $side = false, $priority = null)
 	{
-		if($name)
-			$this->box_name = sanitize_text_field($name);
-
-		if($output_function)
-			$this->output_function = $output_function;
+		if($name) $this->box_name = sanitize_text_field($name);
+		if($output_function) $this->output_function = $output_function;
 
 		$this->side = $side;
+		$this->priority = $side;
 
 		add_action( 'add_meta_boxes', array( $this, 'add_meta_box' ) );
 	}
@@ -120,8 +118,11 @@ class WP_Post_Metabox
 	 *         (public for wordpress)
 	 */
 	function save( $post_id ) {
-		if ( ! isset( $_POST['_wp_metabox_nonce'] ) || ! wp_verify_nonce( $_POST['_wp_metabox_nonce'], self::get_security_string() ) )
+		if ( ! isset( $_POST['_wp_metabox_nonce'] ) || ! wp_verify_nonce( $_POST['_wp_metabox_nonce'], self::get_security_string() ) ) {
 			return $post_id;
+		}
+
+
 
 		foreach ($this->meta_fields as $field) {
 			if( ! empty($_POST[$field]) ) {
