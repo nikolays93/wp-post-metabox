@@ -1,77 +1,87 @@
 <?php
 
-
 namespace NikolayS93;
 
-if ( ! defined( 'ABSPATH' ) )
-  exit; // disable direct access
+// use NikolayS93\WP_Post_Metabox as Metabox;
+
+if ( ! defined( 'ABSPATH' ) ) exit; // disable direct access
 
 class WP_Post_Metabox
 {
-	private $output_function = '';
+	private $output_function = '__return_false';
 	private $box_name = 'Example title';
 	private $side = false;
 	private $priority;
-	private $post_types;
+	private $post_types = array('post', 'page');
 
 	private $meta_fields = array('');
 
 	private static $count = 0;
 
 	/**
-	 * @param mixed $post_types Типы записей на которых нужно добавить бокс
+	 * @param string 	$name   Название бокса
+	 * @param boolean 	$side   Показывать с боку / Нормально
 	 */
-	function __construct( $post_types = null ) {
-		if( is_string($post_types) ) {
-			$this->post_types = array( $post_types );
-		}
-		elseif( is_array($post_types) ) {
-			$this->post_types = $post_types;
+	function __construct($name = false, $side = false, $priority = null)
+	{
+		if($name) $this->box_name = sanitize_text_field($name);
+
+		$this->side = $side;
+		$this->priority = $side; // ??
+
+		add_action( 'add_meta_boxes', array( $this, 'add_meta_box' ) );
+		add_action( 'save_post', array( $this, 'save' ) );
+	}
+
+	function no_content()
+	{
+		_e( 'Callbale function or method not found', 'wp-post-metabox' );
+	}
+
+	/**
+	 * @param function $output_function Название callback функции
+	 */
+	public function set_content( $output_function )
+	{
+		if( is_callable( $output_function ) ) {
+			$this->output_function = $output_function;
 		}
 		else {
-			$this->post_types = array('post', 'page');
+			$this->output_function = array($this, 'no_content');
 		}
 	}
 
-	static function get_security_string()
+	/**
+	 * @param mixed $post_types Типы записей на которых нужно добавить бокс
+	 */
+	public function set_type($post_types)
 	{
-		return apply_filters( 'WP_Post_Boxes::get_security_string', 'Secret' );
+		$post_types = (array) $post_types;
+		if( !empty($post_types) ) $this->post_types = $post_types;
+	}
+
+	public function set_field($field_code)
+	{
+		array_push($this->meta_fields, esc_attr( $field_code ) );
 	}
 
 	/**
 	 * Добавляет в массив значения которые нужно сохранять.
 	 *
-	 * @param string $field_name Название (name) значения.
+	 * @param string $field_code Название (name) значения.
 	 */
-	public function add_fields($field_name)
+	public function set_fields($field_codes)
 	{
-		if(is_array($field_name)) {
-			foreach ($field_name as $field) {
-				array_push($this->meta_fields, esc_attr( $field ) );
-			}
-		}
-		else {
-			array_push($this->meta_fields, esc_attr( $field_name ) );
-		}
+		$field_codes = (array) $field_codes;
 
-		add_action( 'save_post', array( $this, 'save' ) );
+		foreach ($field_codes as $field) {
+			$this->set_field( $field );
+		}
 	}
 
-	/**
-	 * Установка хука с предварительной установкой значений
-	 * @param string 	$name   Название бокса
-	 * @param string 	$output_function Название callback функции
-	 * @param boolean 	$side   Показывать с боку / Нормально
-	 */
-	public function add_box($name = false, $output_function = false, $side = false, $priority = null)
+	private static function get_security_string()
 	{
-		if($name) $this->box_name = sanitize_text_field($name);
-		if($output_function) $this->output_function = $output_function;
-
-		$this->side = $side;
-		$this->priority = $side;
-
-		add_action( 'add_meta_boxes', array( $this, 'add_meta_box' ) );
+		return apply_filters( 'WP_Post_Boxes::get_security_string', 'Secret' );
 	}
 
 	/**
@@ -79,9 +89,8 @@ class WP_Post_Metabox
 	 *
 	 * @param string $post_type Название используемого типа записи
 	 * @access private
-	 *         (public for wordpress)
 	 */
-	function add_meta_box( $post_type )
+	function add_meta_box($post_type)
 	{
 		// get post types without WP default (for exclude menu, revision..)
 		// $post_types = get_post_types(array('_builtin' => false));
@@ -91,16 +100,15 @@ class WP_Post_Metabox
 		if(!empty($this->output_function) && !empty($this->box_name)) {
 			$side = ($this->side) ? 'side' : 'advanced';
 
-			self::$count++;
 			add_meta_box(
-				'custom-meta-box-'.self::$count,
+				'custom-meta-box-' . ++self::$count,
 				$this->box_name,
 				array($this, 'callback_with_nonce'),
 				$this->post_types,
 				$side,
 				null,
 				array( self::get_security_string() )
-				);
+			);
 		}
 	}
 
@@ -115,19 +123,17 @@ class WP_Post_Metabox
 	 *
 	 * @param int $post_id ID поста, который сохраняется.
 	 * @access private
-	 *         (public for wordpress)
 	 */
-	function save( $post_id ) {
+	function save($post_id) {
 		if ( ! isset( $_POST['_wp_metabox_nonce'] ) || ! wp_verify_nonce( $_POST['_wp_metabox_nonce'], self::get_security_string() ) ) {
 			return $post_id;
 		}
 
-
-
 		foreach ($this->meta_fields as $field) {
 			if( ! empty($_POST[$field]) ) {
 				$meta = is_array($_POST[$field]) ?
-				array_filter($_POST[$field], 'sanitize_text_field') : sanitize_text_field( $_POST[$field] );
+					array_filter($_POST[$field], 'sanitize_text_field') : sanitize_text_field( $_POST[$field] );
+
 				update_post_meta( $post_id, $field, $meta );
 			}
 			else {
